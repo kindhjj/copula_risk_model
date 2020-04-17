@@ -1,9 +1,7 @@
----
-title: "Copula Notebook"
-output: html_notebook
----
+# Modeling Systemic Risk with Copula-based Methods
+[Link to report](doc/report_final.pdf)
 
-
+## R code
 
 ```r
 library(dplyr)
