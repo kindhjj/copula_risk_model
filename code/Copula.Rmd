@@ -1,6 +1,8 @@
 ---
 title: "Copula Notebook"
-output: html_notebook
+output:
+  pdf_document: default
+  html_notebook: default
 ---
 
 
@@ -64,7 +66,7 @@ classwide_mean_diff <- classwide_mean_diff %>% map(.,  ~ as.xts(.) %>% .['2006/2
 dateList_Filtered <- classwide_mean %>% map(., rownames)
 ```
 
-## calculate monthly mean pd
+## calculate mean pd
 ```{r}
 classwide_month_mean <- classwide_mean %>% map(.,  ~ dplyr::select(., everything())) %>%
   map2(
@@ -89,6 +91,12 @@ classwide_mean_diff_df <- classwide_month_mean_diff %>% map(.,~.$mean) %>% (func
   do.call(cbind, x)) %>% na.omit
 colnames(classwide_mean_df) <- 1:5
 colnames(classwide_mean_diff_df) <- 1:5
+```
+
+## statistics of mean/different mean
+```{r}
+summary(classwide_mean_df)
+summary(classwide_mean_diff_df)
 ```
 
 ## plotting
@@ -186,21 +194,29 @@ getExcedenceTable <- function(category1, category2) {
 }
 
 excedence_table <- list()
+excedence_diff_table <- list()
 category_name <- list()
 for (i in (1:4)) {
   for (j in (2:5)) {
     if (i != j) {
       excedence_table <-
         c(excedence_table, list(getExcedenceTable(classwide_month_mean[[i]], classwide_month_mean[[j]])))
+      excedence_diff_table <-
+        c(excedence_diff_table, list(getExcedenceTable(classwide_month_mean_diff[[i]], classwide_month_mean_diff[[j]])))
       category_name <- c(category_name, list(as.character(c(i, j))))
     }
   }
 }
 excedence_table <-
   cbind(as.data.frame(do.call(rbind, category_name)), as.data.frame(do.call(rbind, excedence_table)))
+excedence_diff_table <-
+  cbind(as.data.frame(do.call(rbind, category_name)), as.data.frame(do.call(rbind, excedence_diff_table)))
 colnames(excedence_table) <-
   c('category', 'category', '10%', '20%', '30%', '70%', '80%', '90%')
+colnames(excedence_diff_table) <-
+  c('category', 'category', '10%', '20%', '30%', '70%', '80%', '90%')
 excedence_table
+excedence_diff_table
 ```
 
 ## Normalize the data to uniform distribution
@@ -245,7 +261,7 @@ cor(bh1$hfunc1,bh2$hfunc2,method = 'kendall')
 ```{r eval=FALSE, include=FALSE}
 #NOT IMPLEMENTED
 order <- c(2, 1, 3, 4, 5)
-family = rep(3, 10)
+family <- rep(3, 10)
 #IFM method mle
 dPar <- CDVineMLE(classwide_mean_unif_df, family = family, type = 'CVine')
 dtau <- CDVinePar2Tau(family, dPar$par)
@@ -253,51 +269,87 @@ dtau <- CDVinePar2Tau(family, dPar$par)
 
 ## Vine Tree Construction and Regression
 ```{r}
-order<-c(2,1,3,4,5)
-Cla_family<-rep(3,10)
-Gu_family=rep(4,10)
-t_family=rep(2,10)
-dMatrix_Cla<-D2RVine(order,family = Cla_family,par=rep(0.1,10))
-dMatrix_Gu<-D2RVine(order,family = Gu_family,par=rep(1,10))
-dMatrix_t<-D2RVine(order,family = t_family,par=rep(0.1,10),par2=rep(3,10))
-dMatrixCla<-RVineMatrix(dMatrix_Cla$Matrix,dMatrix_Cla$family,par=array(0.01,dim=c(5,5)))
-dMatrixGu<-RVineMatrix(dMatrix_Gu$Matrix,dMatrix_Gu$family,par=array(1,dim=c(5,5)))
-dMatrixt<-RVineMatrix(dMatrix_t$Matrix,dMatrix_t$family,par=array(0.01,dim=c(5,5)),par2=array(3,dim=c(5,5)))
+order <- c(2, 1, 3, 4, 5)
+Gau_family <- rep(1, 10)
+Cla_family <- rep(3, 10)
+Gu_family <- rep(4, 10)
+t_family <- rep(2, 10)
+dMatrix_Gau <-
+  D2RVine(order, family = Gau_family, par = rep(0.1, 10))
+dMatrix_Cla <-
+  D2RVine(order, family = Cla_family, par = rep(0.1, 10))
+dMatrix_Gu <- D2RVine(order, family = Gu_family, par = rep(1, 10))
+dMatrix_t <-
+  D2RVine(order,
+          family = t_family,
+          par = rep(0.1, 10),
+          par2 = rep(3, 10))
+dMatrixGau <-
+  RVineMatrix(dMatrix_Gau$Matrix, dMatrix_Gau$family, par = array(0.01, dim =
+                                                                    c(5, 5)))
+dMatrixCla <-
+  RVineMatrix(dMatrix_Cla$Matrix, dMatrix_Cla$family, par = array(0.01, dim =
+                                                                    c(5, 5)))
+dMatrixGu <-
+  RVineMatrix(dMatrix_Gu$Matrix, dMatrix_Gu$family, par = array(1, dim = c(5, 5)))
+dMatrixt <-
+  RVineMatrix(
+    dMatrix_t$Matrix,
+    dMatrix_t$family,
+    par = array(0.01, dim = c(5, 5)),
+    par2 = array(3, dim = c(5, 5))
+  )
 #L-BFGS-B method mle
-dvineCla<-RVineMLE(classwide_mean_unif_df,dMatrixCla)
-dvineGu<-RVineMLE(classwide_mean_unif_df,dMatrixGu)
-dvinet<-RVineMLE(classwide_mean_unif_df,dMatrixt)
+dvineGau <- RVineMLE(classwide_mean_unif_df, dMatrixGau)
+dvineCla <- RVineMLE(classwide_mean_unif_df, dMatrixCla)
+dvineGu <- RVineMLE(classwide_mean_unif_df, dMatrixGu)
+dvinet <- RVineMLE(classwide_mean_unif_df, dMatrixt)
 
 ```
 
 ```{r}
-order<-c(2,1,4,5,3)
-Cla_family<-rep(3,10)
-Gu_family<-rep(4,10)
-t_family<-rep(2,10)
-cMatrix_Cla<-C2RVine(order,family = Cla_family,par=rep(0.1,10))
-cMatrix_Gu<-C2RVine(order,family = Gu_family,par=rep(1,10))
-cMatrix_t<-C2RVine(order,family = t_family,par=rep(0.1,10),par2=rep(3,10))
-cMatrixCla<-RVineMatrix(cMatrix_Cla$Matrix,cMatrix_Cla$family,par=array(0.01,dim=c(5,5)))
-cMatrixGu<-RVineMatrix(cMatrix_Gu$Matrix,cMatrix_Gu$family,par=array(1,dim=c(5,5)))
-cMatrixt<-RVineMatrix(cMatrix_t$Matrix,cMatrix_t$family,par=array(0.01,dim=c(5,5)),par2=array(3,dim=c(5,5)))
+cMatrix_Gau <-
+  C2RVine(order, family = Gau_family, par = rep(0.1, 10))
+cMatrix_Cla <- C2RVine(order, family = Cla_family, par = rep(0.1, 10))
+cMatrix_Gu <- C2RVine(order, family = Gu_family, par = rep(1, 10))
+cMatrix_t <-
+  C2RVine(order,
+          family = t_family,
+          par = rep(0.1, 10),
+          par2 = rep(3, 10))
+cMatrixGau <-
+  RVineMatrix(cMatrix_Gau$Matrix, cMatrix_Gau$family, par = array(0.01, dim =
+                                                                    c(5, 5)))
+cMatrixCla <-
+  RVineMatrix(cMatrix_Cla$Matrix, cMatrix_Cla$family, par = array(0.01, dim =
+                                                                    c(5, 5)))
+cMatrixGu <-
+  RVineMatrix(cMatrix_Gu$Matrix, cMatrix_Gu$family, par = array(1, dim = c(5, 5)))
+cMatrixt <-
+  RVineMatrix(
+    cMatrix_t$Matrix,
+    cMatrix_t$family,
+    par = array(0.01, dim = c(5, 5)),
+    par2 = array(3, dim = c(5, 5))
+  )
 #L-BFGS-B method mle
-cvineCla<-RVineMLE(classwide_mean_unif_df,cMatrixCla)
-cvineGu<-RVineMLE(classwide_mean_unif_df,cMatrixGu)
-cvinet<-RVineMLE(classwide_mean_unif_df,cMatrixt)
+cvineGau <- RVineMLE(classwide_mean_unif_df, cMatrixGau)
+cvineCla <- RVineMLE(classwide_mean_unif_df, cMatrixCla)
+cvineGu <- RVineMLE(classwide_mean_unif_df, cMatrixGu)
+cvinet <- RVineMLE(classwide_mean_unif_df, cMatrixt)
 ```
 
 ## Vuong test
 ```{r}
-RVineVuongTest(classwide_mean_unif_df,cvineGu$RVM,dvineGu$RVM)
-RVineVuongTest(classwide_mean_unif_df,cvineCla$RVM,dvineCla$RVM)
-RVineVuongTest(classwide_mean_unif_df,cvinet$RVM,dvinet$RVM)
+RVineVuongTest(classwide_mean_unif_df, cvineGu$RVM, dvineGu$RVM)
+RVineVuongTest(classwide_mean_unif_df, cvineCla$RVM, dvineCla$RVM)
+RVineVuongTest(classwide_mean_unif_df, cvinet$RVM, dvinet$RVM)
 ```
 
 ## Plotting of Vine models
 ```{r}
-vineCopList=list(dvineCla,dvineGu,dvinet,cvineCla,cvineGu,cvinet)
-vineCopList%>%map(.,~contour(.$RVM))
+vineCopList = list(dvineCla, dvineGu, dvinet, cvineCla, cvineGu, cvinet)
+vineCopList %>% map(.,  ~ contour(.$RVM))
 ```
 
 ```{r}
@@ -307,14 +359,209 @@ plot(cvineCla$RVM)
 ```{r}
 plot(dvineCla$RVM)
 ```
+```{r include=FALSE}
+draw_blanks <- function(len) {
+    do.call(paste0, as.list(rep(" ", len)))
+}
+draw_lines <- function(len) {
+    do.call(paste0, as.list(rep("-", len)))
+}
+get_num <-  function(j, tree, RVM) {
+    M <- RVM$Matrix
+    d <- nrow(M)
+    # get numbers from structure matrix
+    nums <- as.character(M[c(j, (d - tree + 1):d), j])
+    # conditioned set
+    bef <- paste(nums[2],
+                 nums[1],
+                 sep = ",",
+                 collapse = "")
+    # conditioning set
+    aft <- if (length(nums) > 2) {
+        gsub(" ",
+             ",",
+             do.call(paste, as.list(as.character(nums[3:length(nums)]))))
+    }  else ""
+    # paste together
+    sep <- if (length(nums) > 2) " ; " else ""
+    paste(bef, aft, sep = sep, collapse = "")
+}
+Rsummary <- function(object, with.se = TRUE, digits = 2, ...) {
+
+    ## create character matrices with pair-copula info
+    #     cat("Pair-copulas:\n")
+    d <- nrow(object$Matrix)
+    fammat  <- matrix("", d, d)
+    parmat  <- formatC(object$par, digits, format = "f")
+    par2mat <- formatC(object$par2, digits, format = "f")
+    taumat  <- formatC(object$tau, digits, format = "f")
+    utdmat  <- formatC(object$taildep$upper, digits, format = "f")
+    ltdmat  <- formatC(object$taildep$lower, digits, format = "f")
+    nammat  <- matrix("", d, d)
+    nummat  <- matrix(0, d, d)
+    with.se <- with.se & !is.null(object$se)
+    if (with.se) {
+        semat  <- formatC(object$se, digits, format = "f")
+        se2mat <- formatC(object$se2, digits, format = "f")
+    }
+
+    ## get names and clean matrices
+    for (i in 2:d) {
+        for (j in 1:(i - 1)) {
+            fammat[i, j] <- BiCopName(object$family[i, j])
+            nummat[i, j] <- object$family[i, j]
+            nammat[i, j] <- gsub(" ", "", get_num(j, d - i + 1, object))
+            if (fammat[i, j] == "I") {
+                parmat[i, j] <- "-"
+                par2mat[i, j] <- "-"
+            } else {
+                if (with.se) {
+                    parmat[i, j] <- paste0(parmat[i, j],
+                                           " (",
+                                           semat[i, j],
+                                           ")")
+                    if (object$family[i, j] %in% allfams[twopar]) {
+                        par2mat[i, j] <- paste0(par2mat[i, j],
+                                                " (",
+                                                se2mat[i, j],
+                                                ")")
+                    } else {
+                        par2mat[i, j] <- "-"
+                    }
+                }
+            }
+            if (object$taildep$upper[i, j] == 0)
+                utdmat[i, j] <- "-"
+            if (object$taildep$lower[i, j] == 0)
+                ltdmat[i, j] <- "-"
+        }
+    }
+
+    ## maximal number of characters for each category
+    ltree <- nchar("tree")
+    lfam  <- nchar("family")
+    lfname <- max(nchar("cop"), max(sapply(fammat, nchar)))
+    lpar  <- max(nchar("par"), max(sapply(parmat, nchar)))
+    lpar2 <- max(nchar("par2"), max(sapply(par2mat, nchar)))
+    ltau  <- max(nchar("tau"), max(sapply(taumat, nchar)))
+    lutd  <- max(nchar("UTD"), max(sapply(utdmat, nchar)))
+    lltd  <- max(nchar("LTD"), max(sapply(ltdmat, nchar)))
+    lnam  <- max(nchar("edge"), max(sapply(nammat, nchar)))
+
+
+    ## line with headings
+    txt <- "tree "
+    # substract nchar(edge) - 1 (for space) = 3
+    txt <- paste0(txt, draw_blanks(max(1, lnam - 3)), "edge ")
+    txt <- paste0(txt, "| family ")
+    txt <- paste0(txt, draw_blanks(max(1, lfname - 2)), "cop ")
+    txt <- paste0(txt, draw_blanks(max(1, lpar - 2)), "par ")
+    txt <- paste0(txt, draw_blanks(max(1, lpar2 - 3)), "par2 |")
+    txt <- paste0(txt, draw_blanks(max(1, ltau - 2)), "tau ")
+    txt <- paste0(txt, draw_blanks(max(1, lutd - 2)), "utd ")
+    txt <- paste0(txt, draw_blanks(max(1, lltd - 2)), "ltd")
+    cat(txt, "\n")
+    linelen <- nchar(txt)
+    cat(draw_lines(linelen), "\n")
+
+    for (tree in 1:(d - 1)) {
+        for (edge in 1:(d - tree)) {
+            ## print tree number
+            if (edge == 1) {
+                cat(draw_blanks(max(0, ltree - nchar(tree))))
+                cat(tree, "")
+            } else {
+                cat("     ")
+            }
+
+            ## print edge label
+            tmpch <- nammat[d + 1 - tree, edge]
+            cat(draw_blanks(max(0, lnam - nchar(tmpch))), tmpch)
+
+            ## print copula family
+            cat(" |")
+            cat(formatC(nummat[d + 1 - tree, edge], lfam))
+            tmpch <- fammat[d + 1 - tree, edge]
+            cat(draw_blanks(min(max(0, lfname - nchar(tmpch))) + 1), tmpch)
+
+            ## print parameters
+            tmpch <- parmat[d + 1 - tree, edge]
+            cat(draw_blanks(min(max(0, lpar - nchar(tmpch)) + 1)), tmpch)
+            tmpch <- par2mat[d + 1 - tree, edge]
+            cat(draw_blanks(min(max(0, lpar2 - nchar(tmpch)) + 1)), tmpch)
+
+            ## print dependence measures
+            cat(" |")
+            tmpch <- taumat[d + 1 - tree, edge]
+            cat(draw_blanks(min(max(0, ltau - nchar(tmpch)))), tmpch)
+            tmpch <- utdmat[d + 1 - tree, edge]
+            cat(draw_blanks(min(max(0, lutd - nchar(tmpch)) + 1)), tmpch)
+            tmpch <- ltdmat[d + 1 - tree, edge]
+            cat(draw_blanks(min(max(0, lltd - nchar(tmpch)) + 1)), tmpch)
+
+
+            cat("\n")
+
+        }
+    }
+
+    ## print general info
+    cat("---\n")
+    cat("type:", object$type, "   ")
+    if (!is.null(object$logLik)) {
+        cat("logLik:", round(object$logLik, 2), "   ")
+        cat("AIC:", round(object$AIC, 2), "   ")
+        cat("BIC:", round(object$BIC, 2), "   ")
+    }
+    # show names if provided
+    if (!is.null(object$names)) {
+        linelen <- min(linelen, 90)
+        cat("\n")
+        cat("---\n")
+        txt <- paste0(1, " <-> ", object$names[[1]])
+        for (i in 2:(d - 1)) {
+            if (nchar(txt) > linelen) {
+                cat(txt, ",\n", sep = "")
+                txt <- paste0(i, " <-> ", object$names[[i]])
+            } else {
+                txt <- paste0(txt, ",   ", i, " <-> ", object$names[[i]])
+            }
+        }
+        if (nchar(txt) > linelen) {
+            cat(txt, ",\n", sep = "")
+            txt <- paste0(d, " <-> ", object$names[[d]])
+        } else {
+            txt <- paste0(txt, ",   ", d, " <-> ", object$names[[d]])
+        }
+        cat(txt)
+    }
+
+    sel <- upper.tri(nammat)
+    tab <- data.frame(
+        tree  = do.call(c, lapply(1:(d - 1), function(i) rep(i, d - i))),
+        edge  = rev(t(nammat)[sel]),
+        family = rev(t(object$family)[sel]),
+        cop = rev(t(fammat)[sel]),
+        par  = rev(t(object$par)[sel]),
+        par2 = rev(t(object$par2)[sel]),
+        tau = rev(t(object$tau)[sel]),
+        utd = rev(t(object$taildep$upper)[sel]),
+        ltd = rev(t(object$taildep$lower)[sel])
+    )
+    invisible(tab)
+}
+```
 
 ```{r}
-summary(dvineCla$RVM)
-summary(dvineGu$RVM)
-summary(dvinet$RVM)
-summary(cvineCla$RVM)
-summary(cvineGu$RVM)
-summary(cvinet$RVM)
+digits <- 4
+Rsummary(dvineGau$RVM, digits = digits)
+Rsummary(cvineGau$RVM, digits = digits)
+Rsummary(dvineCla$RVM, digits = digits)
+Rsummary(dvineGu$RVM, digits = digits)
+Rsummary(dvinet$RVM, digits = digits)
+Rsummary(cvineCla$RVM, digits = digits)
+Rsummary(cvineGu$RVM, digits = digits)
+Rsummary(cvinet$RVM, digits = digits)
 ```
 
 
